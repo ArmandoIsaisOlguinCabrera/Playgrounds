@@ -9,40 +9,43 @@
 // 3. **Capabilities Explanation**:
 //    - `platformName`: Specifies the platform to run the test on (set to 'iOS' for iOS testing).
 //    - `platformVersion`: The version of iOS on the simulator or device.
-    //   - Example: Use iOS version "16.2" for testing on simulators or devices with iOS 16.
-    // - `deviceName`: Name of the device or simulator you want to use.
-    //   - Example: Use "iPhone 14" for testing on the iPhone 14 simulator.
+//    - `deviceName`: Name of the device or simulator you want to use.
 //    - `app`: Path to your iOS `.app` file. You can also provide an `.ipa` file if testing on a real device.
-    //   - Example: `/path/to/your/app.app`
 //    - `automationName`: The automation framework to use. For iOS, use `XCUITest`.
 //    - `udid`: (Optional) The unique device identifier for real devices. You can get it using `idevice_id -l`.
-// 4. **Test Actions**:
-//    - Example test actions include finding elements using various locators (e.g., accessibility IDs, XPath, class name) and interacting with them (clicking, typing, etc.).
-//    - Use `driver.$` to find an element and then interact with it using actions like `.click()`, `.setValue()`, etc.
-// 5. **Ending the Test**: Always call `driver.deleteSession()` to ensure the Appium session ends correctly, freeing up resources.
+//    - `language`: Specifies the language for the device.
+//    - `locale`: Specifies the locale for the device.
+//    - `location`: Latitude and Longitude to simulate location during testing.
 
-const { remote } = require('webdriverio');
+// Define the languages and locales to test
+const languagesAndLocales = [
+    { language: 'en', locale: 'US' },  // English (US)
+    { language: 'pt', locale: 'BR' },  // Portuguese (Brazil)
+    { language: 'es', locale: 'ES' },  // Spanish (Spain)
+];
 
-// Appium Setup - Make sure Appium server is running before executing this script
-// You can start the Appium server by running 'appium' in the terminal
-// or configure Appium to run in the background before executing this code
+// Define the location to simulate (latitude and longitude for San Francisco)
+const location = { latitude: 37.7749, longitude: -122.4194 };
 
-// Define capabilities for the iOS testing session
-const capabilities = {
-    platformName: 'iOS',  // Set platform to iOS for testing iOS apps
-    platformVersion: '16.2',  // Specify the iOS version of the simulator or real device you are using
-    deviceName: 'iPhone 14',  // Simulator name, replace with actual device name if using a real device
-    app: '/path/to/your/app.app',  // Path to your .app file for iOS app testing
-    automationName: 'XCUITest',  // XCUITest is the automation framework for iOS
-    noReset: true,  // Do not reset app between tests, useful for maintaining session state
-    // If testing on a real device, use udid and other configurations
-    udid: 'your-device-udid',  // Optional: Unique Device Identifier for real device testing (replace with actual udid)
-    xcodeOrgId: 'your-xcode-org-id',  // Optional: Organization ID required for real device testing (Xcode signing)
-    xcodeSigningId: 'iPhone Developer',  // Optional: Xcode signing identity (ensure the app is signed correctly)
-};
+// Function to run the Appium test for a specific language and locale
+async function runAppiumTest(language, locale) {
+    const capabilities = {
+        platformName: 'iOS',  // Set platform to iOS for testing iOS apps
+        platformVersion: '16.2',  // Specify the iOS version of the simulator or real device you are using
+        deviceName: 'iPhone 14',  // Simulator name, replace with actual device name if using a real device
+        app: '/path/to/your/app.app',  // Path to your .app file for iOS app testing
+        automationName: 'XCUITest',  // XCUITest is the automation framework for iOS
+        noReset: true,  // Do not reset app between tests, useful for maintaining session state
+        language: language,  // Set the language for testing (English, Portuguese, Spanish)
+        locale: locale,  // Set the locale for testing (US, Brazil, Spain)
+        locationServicesEnabled: true,  // Enable location services if you need to simulate location during tests
+        locationServicesAuthorized: true,  // Authorize location services for your app
+        location: location,  // Set the simulated location (latitude and longitude)
+    };
 
-// Establishing the Appium driver and session
-async function runAppiumTest() {
+    const { remote } = require('webdriverio');
+    
+    // Establishing the Appium driver and session
     const driver = await remote({
         logLevel: 'info',  // Log level for detailed information during execution
         path: '/wd/hub',  // Path for the Appium server (default is /wd/hub)
@@ -50,20 +53,33 @@ async function runAppiumTest() {
     });
 
     try {
-        //Assign identifiers, to locate elements
-        myButton.accessibilityIdentifier = "login_button"
-       
-        const element = await driver.$('~element_locator');  // Example element locator (use accessibility ID or XPath)
-        await element.click();
+        // Find and interact with an element using its accessibility ID
+        const element = await driver.$('~login_button');  // Example: Using accessibility ID as a locator
+        await element.click();  // Click the element (e.g., login button)
+
+        // Optionally perform more test actions, such as assertions
         // Example: let text = await driver.getText('~some_element');
         // assert.strictEqual(text, 'Expected Text');  // Example assertion
 
+        // Take a screenshot for debugging or logging purposes
+        const screenshot = await driver.takeScreenshot();
+        require('fs').writeFileSync(`screenshot-${language}-${locale}.png`, screenshot, 'base64');  // Save screenshot to disk
+
     } catch (error) {
-        console.error('Test failed:', error);
+        console.error(`Test failed for ${language}-${locale}:`, error);  // Log any errors that occur during the test
     } finally {
         await driver.deleteSession();  // Always clean up and end the Appium session after the test
     }
 }
 
+// Run the tests for each language/locale combination
+async function runTests() {
+    for (let i = 0; i < languagesAndLocales.length; i++) {
+        const { language, locale } = languagesAndLocales[i];
+        console.log(`Running test for language: ${language}, locale: ${locale}`);
+        await runAppiumTest(language, locale);
+    }
+}
+
 // Start the test script
-runAppiumTest();
+runTests();
