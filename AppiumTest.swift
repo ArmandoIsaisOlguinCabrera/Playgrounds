@@ -21,7 +21,7 @@
 const languagesAndLocales = [
     { language: 'en', locale: 'US' },  // English (US)
     { language: 'pt', locale: 'BR' },  // Portuguese (Brazil)
-    { language: 'es', locale: 'ES' },  // Spanish (Spain)
+    { language: 'es', locale: 'MX' },  // Spanish (Mexico)
 ];
 
 // Define the location to simulate (latitude and longitude for San Francisco)
