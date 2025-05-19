@@ -1,85 +1,109 @@
+const { remote } = require('webdriverio');
+
+// ---------------------------------------------
 // APPIUM SETUP:
-// 1. **Appium Server**: Ensure the Appium server is running before executing this script. Start it via terminal using `appium`.
+// ---------------------------------------------
 
-// 2. **iOS Setup**:
-//    - If testing on a **simulator**, make sure the simulator is running with the correct iOS version (configured in `platformVersion`).
-//    - If testing on a **real device**, ensure the device is connected via USB, trusted for development, and that the UDID is correct.
-//    - For real devices, also ensure the app is signed with valid certificates in Xcode and a valid provisioning profile is used.
+// 1. Appium Server:
+// Ensure the Appium server is running before executing this script.
+// Start it via terminal using: `appium`
 
-// 3. **Capabilities Explanation**:
-//    - `platformName`: Specifies the platform to run the test on (set to 'iOS' for iOS testing).
-//    - `platformVersion`: The version of iOS on the simulator or device.
-//    - `deviceName`: Name of the device or simulator you want to use.
-//    - `app`: Path to your iOS `.app` file. You can also provide an `.ipa` file if testing on a real device.
-//    - `automationName`: The automation framework to use. For iOS, use `XCUITest`.
-//    - `udid`: (Optional) The unique device identifier for real devices. You can get it using `idevice_id -l`.
-//    - `language`: Specifies the language for the device.
-//    - `locale`: Specifies the locale for the device.
-//    - `location`: Latitude and Longitude to simulate location during testing.
+// 2. iOS Setup:
+// - If testing on a simulator, ensure the simulator is running with correct iOS version (`platformVersion`).
+// - If testing on a real device, connect it via USB and ensure it’s trusted and has a valid provisioning profile.
 
-// Define the languages and locales to test
-const languagesAndLocales = [
-    { language: 'en', locale: 'US' },  // English (US)
-    { language: 'pt', locale: 'BR' },  // Portuguese (Brazil)
-    { language: 'es', locale: 'MX' },  // Spanish (Mexico)
-];
+// 3. Capabilities Explanation:
+// - platformName: iOS
+// - platformVersion: e.g., "16.2"
+// - deviceName: e.g., "iPhone 14"
+// - app: Path to your `.app` or `.ipa` file
+// - automationName: XCUITest (used for iOS UI automation)
+// - language/locale: To set test in different languages
 
-// Define the location to simulate (latitude and longitude for San Francisco)
-const location = { latitude: 37.7749, longitude: -122.4194 };
+const capabilities = {
+    platformName: 'iOS',                   // Platform set to iOS
+    platformVersion: '16.2',              // iOS version of the device or simulator
+    deviceName: 'iPhone 14',              // Name of the simulator or real device
+    app: '/path/to/your/app.app',         // Path to your app build (.app or .ipa)
+    automationName: 'XCUITest',           // Required automation engine for iOS
+    noReset: true,                        // Preserve app state between sessions
+    language: 'en',                       // Change to 'es' (Spanish), 'pt' (Portuguese) as needed
+    locale: 'US',                         // Change to 'ES', 'BR' respectively
+    // Optional real device settings:
+    // udid: 'your-device-udid',
+    // xcodeOrgId: 'your-xcode-org-id',
+    // xcodeSigningId: 'iPhone Developer'
+};
 
-// Function to run the Appium test for a specific language and locale
-async function runAppiumTest(language, locale) {
-    const capabilities = {
-        platformName: 'iOS',  // Set platform to iOS for testing iOS apps
-        platformVersion: '16.2',  // Specify the iOS version of the simulator or real device you are using
-        deviceName: 'iPhone 14',  // Simulator name, replace with actual device name if using a real device
-        app: '/path/to/your/app.app',  // Path to your .app file for iOS app testing
-        automationName: 'XCUITest',  // XCUITest is the automation framework for iOS
-        noReset: true,  // Do not reset app between tests, useful for maintaining session state
-        language: language,  // Set the language for testing (English, Portuguese, Spanish)
-        locale: locale,  // Set the locale for testing (US, Brazil, Spain)
-        locationServicesEnabled: true,  // Enable location services if you need to simulate location during tests
-        locationServicesAuthorized: true,  // Authorize location services for your app
-        location: location,  // Set the simulated location (latitude and longitude)
-    };
+// ---------------------------------------------
+// INTEGRATION TEST: LOGIN + DASHBOARD
+// ---------------------------------------------
 
-    const { remote } = require('webdriverio');
-    
-    // Establishing the Appium driver and session
+async function runIntegrationTest() {
     const driver = await remote({
-        logLevel: 'info',  // Log level for detailed information during execution
-        path: '/wd/hub',  // Path for the Appium server (default is /wd/hub)
-        capabilities: capabilities,  // Pass the capabilities defined above
+        logLevel: 'info',
+        path: '/wd/hub',
+        capabilities,
     });
 
     try {
-        // Find and interact with an element using its accessibility ID
-        const element = await driver.$('~login_button');  // Example: Using accessibility ID as a locator
-        await element.click();  // Click the element (e.g., login button)
+        // Step 1: Locate login inputs and login button
+        const usernameField = await driver.$('~username_input');  // Use accessibility ID
+        await usernameField.setValue('testuser');
 
-        // Optionally perform more test actions, such as assertions
-        // Example: let text = await driver.getText('~some_element');
-        // assert.strictEqual(text, 'Expected Text');  // Example assertion
+        const passwordField = await driver.$('~password_input');
+        await passwordField.setValue('securepassword');
 
-        // Take a screenshot for debugging or logging purposes
-        const screenshot = await driver.takeScreenshot();
-        require('fs').writeFileSync(`screenshot-${language}-${locale}.png`, screenshot, 'base64');  // Save screenshot to disk
+        const loginButton = await driver.$('~login_button');
+        await loginButton.click();
+
+        // Step 2: Wait for dashboard screen to load
+        const dashboardHeader = await driver.$('~dashboard_header');
+        const isDisplayed = await dashboardHeader.isDisplayed();
+
+        if (isDisplayed) {
+            console.log('✅ Integration Test Passed: Login + Dashboard');
+        } else {
+            throw new Error('❌ Dashboard did not load after login');
+        }
+
+        // Step 3: Optional - Simulate location access (multilingual context)
+        const allowLocationButton = await driver.$('~allow_location_button');
+        if (await allowLocationButton.isDisplayed()) {
+            await allowLocationButton.click();
+            console.log('📍 Location permission allowed');
+        }
 
     } catch (error) {
-        console.error(`Test failed for ${language}-${locale}:`, error);  // Log any errors that occur during the test
+        console.error('❌ Integration Test Failed:', error);
     } finally {
-        await driver.deleteSession();  // Always clean up and end the Appium session after the test
+        await driver.deleteSession();  // End Appium session
     }
 }
 
-// Run the tests for each language/locale combination
-async function runTests() {
-    for (let i = 0; i < languagesAndLocales.length; i++) {
-        const { language, locale } = languagesAndLocales[i];
-        console.log(`Running test for language: ${language}, locale: ${locale}`);
-        await runAppiumTest(language, locale);
-    }
-}
+// ---------------------------------------------
+// MULTILANGUAGE LOCATION TESTING NOTES:
+// ---------------------------------------------
 
-// Start the test script
-runTests();
+// To test location permissions across multiple languages, change:
+// capabilities.language and capabilities.locale
+//
+// English:
+// language: 'en', locale: 'US'
+// Look for buttons like: "Allow While Using App", "Don't Allow"
+//
+// Español:
+// language: 'es', locale: 'ES'
+// Look for buttons like: "Permitir una vez", "No permitir"
+//
+// Português:
+// language: 'pt', locale: 'BR'
+// Look for buttons like: "Permitir durante o uso do app", "Não permitir"
+//
+// Use different accessibility IDs or use driver.$('//XCUIElementTypeButton[@name="..."]')
+// if the button text changes per language
+
+// ---------------------------------------------
+// Run the test
+// ---------------------------------------------
+runIntegrationTest();
