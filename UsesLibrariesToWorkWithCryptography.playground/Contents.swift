@@ -4,7 +4,7 @@ import Security
 
 // MARK: - 1. SHA256 Hash
 
-let message = "Hola mundo".data(using: .utf8)!
+let message = "Hello worl".data(using: .utf8)!
 let digest = SHA256.hash(data: message)
 print("SHA256:", digest.map { String(format: "%02x", $0) }.joined())
 
